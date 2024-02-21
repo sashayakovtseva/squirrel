@@ -6,10 +6,14 @@ package squirrel
 import (
 	"bytes"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/lann/builder"
+	"github.com/ydb-platform/ydb-go-sdk/v3/table"
+	"github.com/ydb-platform/ydb-go-sdk/v3/table/types"
 )
 
 // Sqlizer is the interface that wraps the ToSql method.
@@ -18,6 +22,11 @@ import (
 // as passed to e.g. database/sql.Exec. It can also return an error.
 type Sqlizer interface {
 	ToSql() (string, []interface{}, error)
+}
+
+// YdbSqlizer is the interface that wraps the ToYQL method.
+type YdbSqlizer interface {
+	ToYQL() (string, []table.ParameterOption, error)
 }
 
 // rawSqlizer is expected to do what Sqlizer does, but without finalizing placeholders.
@@ -180,4 +189,201 @@ func DebugSqlizer(s Sqlizer) string {
 	// "append" any remaning sql that won't need interpolating
 	buf.WriteString(sql)
 	return buf.String()
+}
+
+func prepareYQLString(sql string, args []interface{}) (string, error) {
+	var sb strings.Builder
+	for i, arg := range args {
+		ydbArg, ok := arg.(types.Value)
+		if !ok {
+			return "", fmt.Errorf("arg %T is not ydb.Value", arg)
+		}
+		sb.WriteString(fmt.Sprintf("DECLARE $p%d AS ", i+1))
+		sb.WriteString(ydbArg.Type().Yql())
+		sb.WriteString(";\n")
+	}
+	sb.WriteString(sql)
+
+	return sb.String(), nil
+}
+
+func prepareYQLParams(args []interface{}) ([]table.ParameterOption, error) {
+	ydbArgs := make([]table.ParameterOption, 0, len(args))
+	for i, arg := range args {
+		ydbArgValue, ok := arg.(types.Value)
+		if !ok {
+			return nil, fmt.Errorf("arg %T is not ydb.Value", arg)
+		}
+		ydbArgs = append(ydbArgs, table.ValueParam(
+			fmt.Sprintf("p%d", i+1), ydbArgValue,
+		))
+	}
+
+	return ydbArgs, nil
+}
+
+func castArgsToYQL(args []interface{}) ([]interface{}, error) {
+	if len(args) == 0 {
+		return []interface{}(nil), nil
+	}
+
+	ydbArgs := make([]interface{}, 0, len(args))
+	for _, arg := range args {
+		switch arg.(type) {
+		case types.Value:
+			ydbArgs = append(ydbArgs, arg)
+		default:
+			castedYdbArgs, err := castArgToYdb(arg)
+			if err != nil {
+				return nil, fmt.Errorf("castArgToYdb: %w", err)
+			}
+			for _, ydbArg := range castedYdbArgs {
+				ydbArgs = append(ydbArgs, ydbArg)
+			}
+		}
+	}
+
+	return ydbArgs, nil
+}
+
+func castArgToYdb(arg interface{}) ([]types.Value, error) {
+	switch t := arg.(type) {
+	case bool:
+		return []types.Value{
+			types.BoolValue(t),
+		}, nil
+	case *bool:
+		return []types.Value{
+			types.NullableBoolValue(t),
+		}, nil
+	case int:
+		return []types.Value{
+			types.Int64Value(int64(t)),
+		}, nil
+	case *int:
+		tt := int64(*t)
+		return []types.Value{
+			types.NullableInt64Value(&tt),
+		}, nil
+	case int8:
+		return []types.Value{
+			types.Int8Value(t),
+		}, nil
+	case *int8:
+		return []types.Value{
+			types.NullableInt8Value(t),
+		}, nil
+	case int16:
+		return []types.Value{
+			types.Int16Value(t),
+		}, nil
+	case *int16:
+		return []types.Value{
+			types.NullableInt16Value(t),
+		}, nil
+	case int32:
+		return []types.Value{
+			types.Int32Value(t),
+		}, nil
+	case *int32:
+		return []types.Value{
+			types.NullableInt32Value(t),
+		}, nil
+	case int64:
+		return []types.Value{
+			types.Int64Value(t),
+		}, nil
+	case *int64:
+		return []types.Value{
+			types.NullableInt64Value(t),
+		}, nil
+	case uint:
+		return []types.Value{
+			types.Uint64Value(uint64(t)),
+		}, nil
+	case *uint:
+		tt := uint64(*t)
+		return []types.Value{
+			types.NullableUint64Value(&tt),
+		}, nil
+	case uint8:
+		return []types.Value{
+			types.Uint8Value(t),
+		}, nil
+	case *uint8:
+		return []types.Value{
+			types.NullableUint8Value(t),
+		}, nil
+	case uint16:
+		return []types.Value{
+			types.Uint16Value(t),
+		}, nil
+	case *uint16:
+		return []types.Value{
+			types.NullableUint16Value(t),
+		}, nil
+	case uint32:
+		return []types.Value{
+			types.Uint32Value(t),
+		}, nil
+	case *uint32:
+		return []types.Value{
+			types.NullableUint32Value(t),
+		}, nil
+	case uint64:
+		return []types.Value{
+			types.Uint64Value(t),
+		}, nil
+	case *uint64:
+		return []types.Value{
+			types.NullableUint64Value(t),
+		}, nil
+	case float32:
+		return []types.Value{
+			types.FloatValue(t),
+		}, nil
+	case *float32:
+		return []types.Value{
+			types.NullableFloatValue(t),
+		}, nil
+	case float64:
+		return []types.Value{
+			types.DoubleValue(t),
+		}, nil
+	case *float64:
+		return []types.Value{
+			types.NullableDoubleValue(t),
+		}, nil
+	case string:
+		return []types.Value{
+			types.TextValue(t),
+		}, nil
+	case *string:
+		return []types.Value{
+			types.NullableTextValue(t),
+		}, nil
+	case []byte:
+		return []types.Value{
+			types.BytesValue(t),
+		}, nil
+	case time.Time:
+		return []types.Value{
+			types.TimestampValueFromTime(t),
+		}, nil
+	case *time.Time:
+		return []types.Value{
+			types.NullableTimestampValueFromTime(t),
+		}, nil
+	case json.RawMessage:
+		if t == nil {
+			return []types.Value{
+				types.NullableJSONValueFromBytes(nil),
+			}, nil
+		}
+		return []types.Value{
+			types.JSONValueFromBytes(t),
+		}, nil
+	default:
+		return nil, fmt.Errorf("unsupported type `%T`", arg)
+	}
 }

@@ -27,6 +27,11 @@ var (
 	// dollar-prefixed positional placeholders (e.g. $1, $2, $3).
 	Dollar = dollarFormat{}
 
+	// DollarP is a PlaceholderFormat instance that replaces placeholders with
+	// dollar-prefixed positional placeholders (e.g. $p1, $p2, $p3).
+	// DollarP use for YDB create DECLARE params.
+	DollarP = dollarpFormat{}
+
 	// Colon is a PlaceholderFormat instance that replaces placeholders with
 	// colon-prefixed positional placeholders (e.g. :1, :2, :3).
 	Colon = colonFormat{}
@@ -54,6 +59,16 @@ func (dollarFormat) ReplacePlaceholders(sql string) (string, error) {
 
 func (dollarFormat) debugPlaceholder() string {
 	return "$"
+}
+
+type dollarpFormat struct{}
+
+func (dollarpFormat) ReplacePlaceholders(sql string) (string, error) {
+	return replacePositionalPlaceholders(sql, "$p")
+}
+
+func (dollarpFormat) debugPlaceholder() string {
+	return "$p"
 }
 
 type colonFormat struct{}

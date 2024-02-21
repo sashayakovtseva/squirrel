@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/lann/builder"
+	"github.com/ydb-platform/ydb-go-sdk/v3/table"
 )
 
 type updateData struct {
@@ -204,6 +205,31 @@ func (b UpdateBuilder) MustSql() (string, []interface{}) {
 		panic(err)
 	}
 	return sql, args
+}
+
+// ToYQL builds the query into a SQL string and bound args.
+func (b UpdateBuilder) ToYQL() (string, []table.ParameterOption, error) {
+	sqlStr, args, err := b.ToSql()
+	if err != nil {
+		return sqlStr, nil, fmt.Errorf("b.ToSql: %w", err)
+	}
+
+	args, err = castArgsToYQL(args)
+	if err != nil {
+		return sqlStr, nil, err
+	}
+
+	ydbSqlStr, err := prepareYQLString(sqlStr, args)
+	if err != nil {
+		return sqlStr, nil, fmt.Errorf("prepareYQLString: %w", err)
+	}
+
+	ydbArgs, err := prepareYQLParams(args)
+	if err != nil {
+		return sqlStr, nil, fmt.Errorf("prepareYQLParams: %w", err)
+	}
+
+	return ydbSqlStr, ydbArgs, err
 }
 
 // Prefix adds an expression to the beginning of the query

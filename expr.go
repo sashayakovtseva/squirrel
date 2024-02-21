@@ -177,9 +177,9 @@ func (eq Eq) toSQL(useNotOpr bool) (sql string, args []interface{}, err error) {
 
 		r := reflect.ValueOf(val)
 
-		ydbVal, isYdbVal := val.(types.Value)
+		yqlVal, isYQLVal := val.(types.Value)
 		// FIXME!
-		if !isYdbVal {
+		if !isYQLVal {
 			if r.Kind() == reflect.Ptr {
 				if r.IsNil() {
 					val = nil
@@ -194,9 +194,9 @@ func (eq Eq) toSQL(useNotOpr bool) (sql string, args []interface{}, err error) {
 		} else {
 			if isListType(val) {
 				switch {
-				case isYdbVal:
+				case isYQLVal:
 					expr = fmt.Sprintf("%s %s ?", key, inOpr)
-					args = append(args, ydbVal)
+					args = append(args, yqlVal)
 				default:
 					valVal := reflect.ValueOf(val)
 					if valVal.Len() == 0 {
@@ -436,9 +436,9 @@ func getSortedKeys(exp map[string]interface{}) []string {
 }
 
 func isListType(val interface{}) bool {
-	ydbType, ok := val.(types.Value)
+	yqlType, ok := val.(types.Value)
 	if ok {
-		return strings.Contains(ydbType.Type().Yql(), "List")
+		return strings.Contains(yqlType.Type().Yql(), "List")
 	}
 	if driver.IsValue(val) {
 		return false

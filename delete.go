@@ -144,17 +144,17 @@ func (b DeleteBuilder) ToYQL() (string, []table.ParameterOption, error) {
 		return sqlStr, nil, err
 	}
 
-	ydbSqlStr, err := prepareYQLString(sqlStr, args)
+	yqlStr, err := prepareYQLString(sqlStr, args)
 	if err != nil {
 		return sqlStr, nil, fmt.Errorf("prepareYQLString: %w", err)
 	}
 
-	ydbArgs, err := prepareYQLParams(args)
+	yqlArgs, err := prepareYQLParams(args)
 	if err != nil {
 		return sqlStr, nil, fmt.Errorf("prepareYQLParams: %w", err)
 	}
 
-	return ydbSqlStr, ydbArgs, err
+	return yqlStr, yqlArgs, err
 }
 
 // Prefix adds an expression to the beginning of the query

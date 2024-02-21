@@ -24,8 +24,8 @@ type Sqlizer interface {
 	ToSql() (string, []interface{}, error)
 }
 
-// YdbSqlizer is the interface that wraps the ToYQL method.
-type YdbSqlizer interface {
+// Yqliser is the interface that wraps the ToYQL method.
+type Yqliser interface {
 	ToYQL() (string, []table.ParameterOption, error)
 }
 
@@ -194,12 +194,12 @@ func DebugSqlizer(s Sqlizer) string {
 func prepareYQLString(sql string, args []interface{}) (string, error) {
 	var sb strings.Builder
 	for i, arg := range args {
-		ydbArg, ok := arg.(types.Value)
+		yqlArg, ok := arg.(types.Value)
 		if !ok {
 			return "", fmt.Errorf("arg %T is not ydb.Value", arg)
 		}
 		sb.WriteString(fmt.Sprintf("DECLARE $p%d AS ", i+1))
-		sb.WriteString(ydbArg.Type().Yql())
+		sb.WriteString(yqlArg.Type().Yql())
 		sb.WriteString(";\n")
 	}
 	sb.WriteString(sql)
@@ -208,18 +208,18 @@ func prepareYQLString(sql string, args []interface{}) (string, error) {
 }
 
 func prepareYQLParams(args []interface{}) ([]table.ParameterOption, error) {
-	ydbArgs := make([]table.ParameterOption, 0, len(args))
+	yqlArgs := make([]table.ParameterOption, 0, len(args))
 	for i, arg := range args {
-		ydbArgValue, ok := arg.(types.Value)
+		yqlArgValue, ok := arg.(types.Value)
 		if !ok {
 			return nil, fmt.Errorf("arg %T is not ydb.Value", arg)
 		}
-		ydbArgs = append(ydbArgs, table.ValueParam(
-			fmt.Sprintf("p%d", i+1), ydbArgValue,
+		yqlArgs = append(yqlArgs, table.ValueParam(
+			fmt.Sprintf("p%d", i+1), yqlArgValue,
 		))
 	}
 
-	return ydbArgs, nil
+	return yqlArgs, nil
 }
 
 func castArgsToYQL(args []interface{}) ([]interface{}, error) {
@@ -227,26 +227,26 @@ func castArgsToYQL(args []interface{}) ([]interface{}, error) {
 		return []interface{}(nil), nil
 	}
 
-	ydbArgs := make([]interface{}, 0, len(args))
+	yqlArgs := make([]interface{}, 0, len(args))
 	for _, arg := range args {
 		switch arg.(type) {
 		case types.Value:
-			ydbArgs = append(ydbArgs, arg)
+			yqlArgs = append(yqlArgs, arg)
 		default:
-			castedYdbArgs, err := castArgToYdb(arg)
+			castedYQLArgs, err := castArgToYQL(arg)
 			if err != nil {
-				return nil, fmt.Errorf("castArgToYdb: %w", err)
+				return nil, fmt.Errorf("castArgToYQL: %w", err)
 			}
-			for _, ydbArg := range castedYdbArgs {
-				ydbArgs = append(ydbArgs, ydbArg)
+			for _, yqlArg := range castedYQLArgs {
+				yqlArgs = append(yqlArgs, yqlArg)
 			}
 		}
 	}
 
-	return ydbArgs, nil
+	return yqlArgs, nil
 }
 
-func castArgToYdb(arg interface{}) ([]types.Value, error) {
+func castArgToYQL(arg interface{}) ([]types.Value, error) {
 	switch t := arg.(type) {
 	case bool:
 		return []types.Value{

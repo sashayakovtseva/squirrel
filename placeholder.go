@@ -29,7 +29,7 @@ var (
 
 	// DollarP is a PlaceholderFormat instance that replaces placeholders with
 	// dollar-prefixed positional placeholders (e.g. $p1, $p2, $p3).
-	// DollarP use for YDB create DECLARE params.
+	// DollarP is used to declare parameters in YQL.
 	DollarP = dollarpFormat{}
 
 	// Colon is a PlaceholderFormat instance that replaces placeholders with

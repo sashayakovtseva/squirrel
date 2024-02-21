@@ -114,17 +114,17 @@ func (b CaseBuilder) ToYQL() (string, []table.ParameterOption, error) {
 		return "", nil, err
 	}
 
-	ydbSqlStr, err := prepareYQLString(sqlStr, args)
+	yqlStr, err := prepareYQLString(sqlStr, args)
 	if err != nil {
 		return sqlStr, nil, fmt.Errorf("prepareYQLString: %w", err)
 	}
 
-	ydbArgs, err := prepareYQLParams(args)
+	yqlArgs, err := prepareYQLParams(args)
 	if err != nil {
 		return sqlStr, nil, fmt.Errorf("prepareYQLParams: %w", err)
 	}
 
-	return ydbSqlStr, ydbArgs, nil
+	return yqlStr, yqlArgs, nil
 }
 
 // MustSql builds the query into a SQL string and bound args.
